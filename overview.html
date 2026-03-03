@@ -359,7 +359,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;height:c
   <button class="hdr-btn" onclick="exportData()">⬇ Export</button>
   <button class="hdr-btn" onclick="importData()">⬆ Import</button>
   <button class="hdr-btn" style="background:rgba(220,38,38,.3)" onclick="resetAll()">⟳ Reset</button>
+  <button class="hdr-btn" id="gh-btn" style="background:rgba(255,255,255,.22)" onclick="ghAction()">⬡ GitHub</button>
   <input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(event)">
+</div>
+
+<div id="gh-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;display:none;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;padding:28px;max-width:360px;text-align:center;color:#1e293b">
+    <h3 style="margin-bottom:12px" id="gh-modal-title">Connect GitHub</h3>
+    <p style="margin-bottom:16px;font-size:13px;color:#64748b" id="gh-modal-msg"></p>
+    <div id="gh-modal-code" style="font-size:28px;font-weight:800;letter-spacing:4px;margin:16px 0;display:none"></div>
+    <a id="gh-modal-link" href="#" target="_blank" style="display:none;color:#3b82f6;font-size:13px">Open GitHub to enter code →</a>
+    <div style="margin-top:16px"><button class="hdr-btn" style="background:#e2e8f0;color:#1e293b" onclick="closeGhModal()">Close</button></div>
+  </div>
 </div>
 
 <div id="main">
@@ -1347,6 +1358,119 @@ function handleImport(e){
   r.readAsText(f);e.target.value='';
 }
 
+// ─── GITHUB SYNC (Device Flow + Gist) ────────────────────────────────────────
+const GH_CLIENT_ID='Ov23limUXGj7sIDx6kIb';
+let ghToken=localStorage.getItem('rg_gh_token');
+let ghGistId=localStorage.getItem('rg_gh_gist');
+let ghUser=localStorage.getItem('rg_gh_user');
+function updateGhBtn(){
+  const btn=document.getElementById('gh-btn');
+  if(ghToken) btn.textContent='⬡ '+ghUser;
+  else btn.textContent='⬡ GitHub';
+}
+function ghAction(){
+  if(ghToken){
+    const c=confirm(`Logged in as ${ghUser}.\n\n• OK = Sync now\n• Cancel = Logout`);
+    if(c) ghSave();
+    else ghLogout();
+  } else ghLogin();
+}
+function closeGhModal(){document.getElementById('gh-modal').style.display='none';}
+function showGhModal(title,msg){
+  document.getElementById('gh-modal-title').textContent=title;
+  document.getElementById('gh-modal-msg').textContent=msg;
+  document.getElementById('gh-modal-code').style.display='none';
+  document.getElementById('gh-modal-link').style.display='none';
+  document.getElementById('gh-modal').style.display='flex';
+}
+async function ghLogin(){
+  showGhModal('Connect GitHub','Requesting device code...');
+  try{
+    const r=await fetch('https://github.com/login/device/code',{method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify({client_id:GH_CLIENT_ID,scope:'gist'})});
+    const d=await r.json();
+    if(!d.user_code){showGhModal('Error',d.error_description||'Failed to get device code.');return;}
+    document.getElementById('gh-modal-code').textContent=d.user_code;
+    document.getElementById('gh-modal-code').style.display='block';
+    document.getElementById('gh-modal-link').href=d.verification_uri;
+    document.getElementById('gh-modal-link').style.display='inline';
+    document.getElementById('gh-modal-msg').textContent='Enter this code on GitHub:';
+    ghPoll(d.device_code,d.interval||5);
+  }catch(e){showGhModal('Error','Network error: '+e.message);}
+}
+async function ghPoll(deviceCode,interval){
+  const poll=async()=>{
+    try{
+      const r=await fetch('https://github.com/login/oauth/access_token',{method:'POST',
+        headers:{'Content-Type':'application/json','Accept':'application/json'},
+        body:JSON.stringify({client_id:GH_CLIENT_ID,device_code:deviceCode,grant_type:'urn:ietf:params:oauth:grant-type:device_code'})});
+      const d=await r.json();
+      if(d.access_token){
+        ghToken=d.access_token;localStorage.setItem('rg_gh_token',ghToken);
+        const u=await fetch('https://api.github.com/user',{headers:{Authorization:'Bearer '+ghToken}});
+        const ud=await u.json();ghUser=ud.login;localStorage.setItem('rg_gh_user',ghUser);
+        updateGhBtn();
+        await ghLoad();
+        closeGhModal();return;
+      }
+      if(d.error==='authorization_pending') setTimeout(poll,(interval+1)*1000);
+      else if(d.error==='slow_down') setTimeout(poll,(interval+6)*1000);
+      else showGhModal('Error',d.error_description||d.error);
+    }catch(e){showGhModal('Error','Poll error: '+e.message);}
+  };
+  setTimeout(poll,(interval+1)*1000);
+}
+async function ghSave(){
+  if(!ghToken)return;
+  const data=JSON.stringify({elements:ELEMENTS,goals:GOALS,tags:TAGS,saved:new Date().toISOString()},null,2);
+  const files={'researchgraph_data.json':{content:data}};
+  try{
+    if(ghGistId){
+      await fetch('https://api.github.com/gists/'+ghGistId,{method:'PATCH',
+        headers:{Authorization:'Bearer '+ghToken,'Content-Type':'application/json'},
+        body:JSON.stringify({files})});
+    }else{
+      const r=await fetch('https://api.github.com/gists',{method:'POST',
+        headers:{Authorization:'Bearer '+ghToken,'Content-Type':'application/json'},
+        body:JSON.stringify({description:'ResearchGraph data',public:false,files})});
+      const d=await r.json();ghGistId=d.id;localStorage.setItem('rg_gh_gist',ghGistId);
+    }
+  }catch(e){console.error('Gist save error:',e);}
+}
+async function ghLoad(){
+  if(!ghToken)return;
+  if(!ghGistId){
+    // suche existierenden Gist
+    try{
+      const r=await fetch('https://api.github.com/gists?per_page=100',{headers:{Authorization:'Bearer '+ghToken}});
+      const gists=await r.json();
+      const found=gists.find(g=>g.files['researchgraph_data.json']);
+      if(found){ghGistId=found.id;localStorage.setItem('rg_gh_gist',ghGistId);}
+    }catch(e){}
+  }
+  if(!ghGistId)return;
+  try{
+    const r=await fetch('https://api.github.com/gists/'+ghGistId,{headers:{Authorization:'Bearer '+ghToken}});
+    const d=await r.json();
+    const content=d.files['researchgraph_data.json']?.content;
+    if(!content)return;
+    const parsed=JSON.parse(content);
+    if(parsed.elements)ELEMENTS.splice(0,Infinity,...parsed.elements);
+    if(parsed.goals)GOALS.splice(0,Infinity,...parsed.goals);
+    if(parsed.tags)Object.keys(TAGS).forEach(k=>delete TAGS[k]),Object.assign(TAGS,parsed.tags);
+    saveState();saveTags();buildRoadmap();renderDetail();
+  }catch(e){console.error('Gist load error:',e);}
+}
+function ghLogout(){
+  ghToken=null;ghGistId=null;ghUser=null;
+  localStorage.removeItem('rg_gh_token');localStorage.removeItem('rg_gh_gist');localStorage.removeItem('rg_gh_user');
+  updateGhBtn();
+}
+// Auto-sync: nach jedem saveState auch zum Gist pushen
+const _origSave=saveState;
+saveState=function(){_origSave();ghSave();};
+
 // ─── PHASE 8: FULL RESET ─────────────────────────────────────────────────────
 function resetAll(){
   if(!confirm('Reset all data? This will delete all saved changes and load defaults.'))return;
@@ -1383,6 +1507,8 @@ function initResizable(){
 buildTagManager();
 buildRoadmap();
 initResizable();
+updateGhBtn();
+if(ghToken)ghLoad();
 </script>
 </body>
 </html>
