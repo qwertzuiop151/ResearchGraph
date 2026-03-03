@@ -1,0 +1,30 @@
+{
+  "elements": [
+    {"id":"el_1","label":"Construct A","goal":"g1","groupId":"grp_g1_build","status":"done","tags":["build"],"desc":"Base vector for fluorescence assay.","replicates":[],"custom":[{"id":"cs1","title":"Construction","content":"Backbone: pUC19. Gibson Assembly. Primers: oFW1, oRV1."}]},
+    {"id":"el_2","label":"Construct B","goal":"g1","groupId":"grp_g1_build","status":"done","tags":["build"],"desc":"Reporter fusion from Construct A + GFP module.","replicates":[],"custom":[{"id":"cs1","title":"Construction","content":"Backbone: Construct A. Restriction cloning BamHI/EcoRI."}]},
+    {"id":"el_3","label":"Construct C","goal":"g1","groupId":"grp_g1_ctrl","status":"in_progress","tags":["ctrl"],"desc":"Empty vector control (no insert).","replicates":[],"custom":[]},
+    {"id":"el_4","label":"Fluorescence Microscopy","goal":"g1","groupId":"grp_g1_exp","status":"done","tags":["experiment"],"desc":"Confocal imaging of Construct B in HEK293 cells.","replicates":[{"id":"r1","date":"2026-02-15","result":"GFP signal in cytoplasm confirmed."}],"custom":[{"id":"cs1","title":"Protocol","content":"1. Transfect HEK293 with @Construct B\n2. Incubate 48h at 37°C\n3. Fix with 4% PFA\n4. Image on Leica SP8 (488nm excitation)"}]},
+    {"id":"el_5","label":"Western Blot","goal":"g1","groupId":"grp_g1_exp","status":"planned","tags":["experiment"],"desc":"Confirm protein expression from @Construct B.","replicates":[],"custom":[]},
+    {"id":"el_6","label":"Knockout Line X","goal":"g2","groupId":"grp_g2_lines","status":"done","tags":["build"],"desc":"CRISPR KO of gene X in HEK293. Verified by sequencing.","replicates":[],"custom":[{"id":"cs1","title":"Guide RNA","content":"Target: ATCGATCGATCGATCG (exon 3)"}]},
+    {"id":"el_7","label":"Rescue Construct","goal":"g2","groupId":"grp_g2_lines","status":"in_progress","tags":["build"],"desc":"Re-express gene X in @Knockout Line X to confirm phenotype rescue.","replicates":[],"custom":[]},
+    {"id":"el_8","label":"Growth Assay","goal":"g2","groupId":"grp_g2_exp","status":"planned","tags":["experiment"],"desc":"Compare growth rate: WT vs @Knockout Line X vs @Rescue Construct.","replicates":[],"custom":[{"id":"cs1","title":"Protocol","content":"1. Seed 10k cells per well (96-well plate)\n2. Measure confluence every 12h (IncuCyte)\n3. 5 biological replicates per condition"}]},
+    {"id":"el_9","label":"RNA-Seq","goal":"g2","groupId":"grp_g2_exp","status":"planned","tags":["experiment","analysis"],"desc":"Transcriptome comparison WT vs @Knockout Line X.","replicates":[],"custom":[]}
+  ],
+  "goals": [
+    {"id":"g1","label":"Reporter System","status":"in_progress","icon":"🔬","desc":"Establish and validate a fluorescent reporter system.","experiment":"","design_rationale":"","groups":[
+      {"id":"grp_g1_build","label":"Constructs","parentId":null,"order":0},
+      {"id":"grp_g1_ctrl","label":"Controls","parentId":null,"order":1},
+      {"id":"grp_g1_exp","label":"Experiments","parentId":null,"order":2}
+    ],"next":[],"blockers":[],"custom":[]},
+    {"id":"g2","label":"Gene X Knockout","status":"in_progress","icon":"🧬","desc":"Characterize the role of gene X using CRISPR knockout.","experiment":"","design_rationale":"","groups":[
+      {"id":"grp_g2_lines","label":"Cell Lines","parentId":null,"order":0},
+      {"id":"grp_g2_exp","label":"Experiments","parentId":null,"order":1}
+    ],"next":[],"blockers":[],"custom":[]}
+  ],
+  "tags": {
+    "build":{"label":"Construct","color":"#3b82f6"},
+    "ctrl":{"label":"Control","color":"#94a3b8"},
+    "experiment":{"label":"Experiment","color":"#16a34a"},
+    "analysis":{"label":"Analysis","color":"#7c3aed"}
+  }
+}
