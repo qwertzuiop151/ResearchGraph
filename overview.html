@@ -460,7 +460,7 @@ let TAGS = _load('rg_tags', {});
     if(!g.groups){
       const aps=[...new Set(ELEMENTS.filter(x=>x.goal===g.id).map(x=>x.ap).filter(Boolean))];
       g.groups=aps.map((ap,i)=>({id:'grp_'+g.id+'_'+ap,label:(TAGS[ap]?.label)||ap,parentId:null,order:i}));
-      if(!g.groups.length) g.groups=[{id:'grp_'+g.id+'_default',label:'Standard',parentId:null,order:0}];
+      if(!g.groups.length) g.groups=[{id:'grp_'+g.id+'_default',label:'General',parentId:null,order:0}];
     }
   });
   ELEMENTS.forEach(x=>{
@@ -619,7 +619,7 @@ function buildTagManager(){
     pill.onclick=()=>toggleTagFilter(key);
     pill.innerHTML=`<span style="cursor:pointer" onclick="event.stopPropagation();toggleTmPalette('${key}')" title="Change color">●</span>
       <span class="tm-pill-label" onclick="event.stopPropagation();editTagLabel(this,'${key}')">${escH(cfg.label)}</span>
-      <button class="tm-del" onclick="event.stopPropagation();deleteTag('${key}')" title="Tag löschen">×</button>`;
+      <button class="tm-del" onclick="event.stopPropagation();deleteTag('${key}')" title="Delete tag">×</button>`;
     pillsWrap.appendChild(pill);
   });
   c.appendChild(pillsWrap);
@@ -670,7 +670,7 @@ function editTagLabel(span,key){
   span.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();span.blur();}});
 }
 function deleteTag(key){
-  if(!confirm(`Tag "${TAGS[key]?.label}" löschen? Wird auch von allen Elementen entfernt.`))return;
+  if(!confirm(`Delete tag "${TAGS[key]?.label}"? Will also be removed from all elements.`))return;
   ELEMENTS.forEach(el=>{el.tags=(el.tags||[]).filter(t=>t!==key);});
   delete TAGS[key];hiddenTags.delete(key);saveState();saveTags();buildTagManager();buildRoadmap();renderDetail();
 }
@@ -1113,11 +1113,11 @@ function renderDetail(){
       ${ed('goal',g.id,'label',g.label,'div','dtitle')}
       <span class="dbadge" style="background:${g.status==='done'?'#bfdbfe':'#fed7aa'};color:${g.status==='done'?'#1e3a8a':'#7c2d12'}">${si.icon} ${si.text}</span>
       ${ed('goal',g.id,'desc',g.desc,'p','ddesc')}
-      <div class="dsec"><div class="dsec-title">Experiment / Nachweis</div>
+      <div class="dsec"><div class="dsec-title">Experiment / Method</div>
         ${ed('goal',g.id,'experiment',g.experiment,'div','dsec-content')}</div>
-      <div class="dsec"><div class="dsec-title">Warum so designt?</div>
+      <div class="dsec"><div class="dsec-title">Design Rationale</div>
         ${ed('goal',g.id,'design_rationale',g.design_rationale,'div','dsec-content')}</div>
-      <div class="dsec"><div class="dsec-title">Elemente (${doneC}/${needed.length} done)</div>
+      <div class="dsec"><div class="dsec-title">Elements (${doneC}/${needed.length} done)</div>
         <div style="display:flex;flex-wrap:wrap;gap:4px">${needed.map(p=>{
           const si2=statusIcon(p.status);const col=getElementColor(p);
           return `<span class="dep-tag" onclick="select('element','${p.id}')" style="border-left:3px solid ${col}">${si2.icon} ${p.label}</span>`;
@@ -1261,7 +1261,7 @@ function openAddModal(preGoal){
   const activeGoal=preGoal||GOALS.filter(g=>g.status!=='abandoned')[0]?.id;
   const body=document.getElementById('add-body');
   body.innerHTML=`
-    <div class="add-field"><label>Bezeichnung</label><input id="add-label" placeholder="z.B. Experiment-1" /></div>
+    <div class="add-field"><label>Name</label><input id="add-label" placeholder="e.g. Experiment-1" /></div>
     <div class="add-field"><label>Goal</label>
       <select id="add-goal" onchange="document.getElementById('add-grp').innerHTML=_buildGroupOptions(this.value)">
         ${GOALS.filter(g=>g.status!=='abandoned').map(g=>`<option value="${g.id}"${activeGoal===g.id?' selected':''}>${g.icon} ${g.label}</option>`).join('')}
